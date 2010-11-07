@@ -62,17 +62,17 @@ int main(int argc, char*argv[])
         return EXIT_FAILURE;
     }
     if (strcmp(argv[1], "Release") == 0) {
-        strcat_s(command, CMD_SIZE, "-MD ");
+        strcat_s(command, CMD_SIZE, "-MT ");
     }
     else if (strcmp(argv[1], "Debug") == 0) {
-        strcat_s(command, CMD_SIZE, "-D_DEBUG -MDd ");
+        strcat_s(command, CMD_SIZE, "-D_DEBUG -MTd ");
     }
     else if (strcmp(argv[1], "ReleaseItanium") == 0) {
-        strcat_s(command, CMD_SIZE, "-MD /USECL:MS_ITANIUM ");
+        strcat_s(command, CMD_SIZE, "-MT /USECL:MS_ITANIUM ");
     }
     else if (strcmp(argv[1], "ReleaseAMD64") == 0) {
-        strcat_s(command, CMD_SIZE, "-MD ");
-        strcat_s(command, CMD_SIZE, "-MD /USECL:MS_OPTERON ");
+        strcat_s(command, CMD_SIZE, "-MT ");
+        strcat_s(command, CMD_SIZE, "-MT /USECL:MS_OPTERON ");
     }
     else {
         fprintf(stderr, "unsupported configuration %s\n", argv[1]);

@@ -68,7 +68,19 @@ zipimporter_init(ZipImporter *self, PyObject *args, PyObject *kwds)
 
     if (!PyArg_ParseTuple(args, "s:zipimporter",
                           &path))
-        return -1;
+	{
+		/* Check if it's a unicode path - if it is just ignore it
+		   unicode paths in zipimporter are not supported */
+		Py_UNICODE *upath;
+		if (PyArg_ParseTuple(args, "u:zipimporter", &upath))
+		{
+			PyErr_SetString(ZipImportError, "unicode paths for Zip files are not supported");
+		    return -1;
+		}
+		else
+			return -1; /* not unicode or string, so fail */
+	}
+
 
     len = strlen(path);
     if (len == 0) {

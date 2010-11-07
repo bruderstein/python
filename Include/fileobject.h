@@ -43,6 +43,11 @@ PyAPI_FUNC(int) PyFile_SetEncoding(PyObject *, const char *);
 PyAPI_FUNC(int) PyFile_SetEncodingAndErrors(PyObject *, const char *, char *errors);
 PyAPI_FUNC(PyObject *) PyFile_FromFile(FILE *, char *, char *,
                                              int (*)(FILE *));
+// BEGIN_PYSCR_CHANGE davegb3 26-Nov-2010 FixMTBuildIssue
+// Add the forward declaration for PyFile_FromFileDllSafe
+PyAPI_FUNC(PyObject *) PyFile_FromFileDllSafe(FILE *, PyObject *, char *,
+                                             int (*)(FILE *));
+// END_PYSCR_CHANGE
 PyAPI_FUNC(FILE *) PyFile_AsFile(PyObject *);
 PyAPI_FUNC(void) PyFile_IncUseCount(PyFileObject *);
 PyAPI_FUNC(void) PyFile_DecUseCount(PyFileObject *);

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="Windows-1252"?>
 <VisualStudioProject
 	ProjectType="Visual C++"
-	Version="9,00"
+	Version="9.00"
 	Name="_elementtree"
 	ProjectGUID="{17E1E049-C309-4D79-843F-AE483C264AEA}"
 	RootNamespace="_elementtree"
@@ -44,6 +44,7 @@
 				Name="VCCLCompilerTool"
 				AdditionalIncludeDirectories="..\Modules\expat"
 				PreprocessorDefinitions="XML_NS;XML_DTD;BYTEORDER=1234;XML_CONTEXT_BYTES=1024;USE_PYEXPAT_CAPI;XML_STATIC;HAVE_MEMMOVE"
+				RuntimeLibrary="1"
 			/>
 			<Tool
 				Name="VCManagedResourceCompilerTool"
@@ -168,6 +169,7 @@
 				Name="VCCLCompilerTool"
 				AdditionalIncludeDirectories="..\Modules\expat"
 				PreprocessorDefinitions="XML_NS;XML_DTD;BYTEORDER=1234;XML_CONTEXT_BYTES=1024;USE_PYEXPAT_CAPI;XML_STATIC;HAVE_MEMMOVE"
+				RuntimeLibrary="0"
 			/>
 			<Tool
 				Name="VCManagedResourceCompilerTool"

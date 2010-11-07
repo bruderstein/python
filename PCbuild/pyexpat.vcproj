@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="Windows-1252"?>
 <VisualStudioProject
 	ProjectType="Visual C++"
-	Version="9,00"
+	Version="9.00"
 	Name="pyexpat"
 	ProjectGUID="{D06B6426-4762-44CC-8BAD-D79052507F2F}"
 	RootNamespace="pyexpat"
@@ -44,6 +44,7 @@
 				Name="VCCLCompilerTool"
 				AdditionalIncludeDirectories=".\..\Modules\expat"
 				PreprocessorDefinitions="PYEXPAT_EXPORTS;HAVE_EXPAT_H;XML_NS;XML_DTD;BYTEORDER=1234;XML_CONTEXT_BYTES=1024;XML_STATIC;HAVE_MEMMOVE"
+				RuntimeLibrary="1"
 			/>
 			<Tool
 				Name="VCManagedResourceCompilerTool"
@@ -166,6 +167,7 @@
 				Name="VCCLCompilerTool"
 				AdditionalIncludeDirectories=".\..\Modules\expat"
 				PreprocessorDefinitions="PYEXPAT_EXPORTS;HAVE_EXPAT_H;XML_NS;XML_DTD;BYTEORDER=1234;XML_CONTEXT_BYTES=1024;XML_STATIC;HAVE_MEMMOVE"
+				RuntimeLibrary="0"
 			/>
 			<Tool
 				Name="VCManagedResourceCompilerTool"

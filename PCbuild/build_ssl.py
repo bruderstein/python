@@ -138,7 +138,7 @@ def fix_makefile(makefile):
                 line = "MKDIR=mkdir\n"
             if line.startswith("CFLAG="):
                 line = line.strip()
-                for algo in ("RC5", "MDC2", "IDEA"):
+                for algo in ("RC5", "MDC2"):  # "IDEA" was also here
                     noalgo = " -DOPENSSL_NO_%s" % algo
                     if noalgo not in line:
                         line = line + noalgo
@@ -190,7 +190,7 @@ def main():
     print("Found a working perl at '%s'" % (perl,))
     sys.stdout.flush()
     # Look for SSL 2 levels up from pcbuild - ie, same place zlib etc all live.
-    ssl_dir = find_best_ssl_dir(("..\\..",))
+    ssl_dir = find_best_ssl_dir(("..\\..\\..\\PyLibs",))
     if ssl_dir is None:
         sys.exit(1)
 

@@ -1067,8 +1067,13 @@ class TextDoc(Doc):
                     modpkgs.append(modname)
 
             modpkgs.sort()
-            result = result + self.section(
-                'PACKAGE CONTENTS', join(modpkgs, '\n'))
+            try:
+                result = result + self.section(
+                    'PACKAGE CONTENTS', join(modpkgs, '\n'))
+            except:
+                result = result + self.section(
+                    'PACKAGE CONTENTS', 'Skipped due to Unicode Path')
+					
 
         # Detect submodules as sometimes created by C extensions
         submodules = []

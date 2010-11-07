@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="Windows-1252"?>
 <VisualStudioProject
 	ProjectType="Visual C++"
-	Version="9,00"
+	Version="9.00"
 	Name="pythonw"
 	ProjectGUID="{F4229CC3-873C-49AE-9729-DD308ED4CD4A}"
 	TargetFrameworkVersion="131072"
@@ -46,7 +46,7 @@
 				EnableIntrinsicFunctions="false"
 				AdditionalIncludeDirectories=""
 				PreprocessorDefinitions="_WINDOWS"
-				RuntimeLibrary="3"
+				RuntimeLibrary="1"
 				CompileAs="0"
 			/>
 			<Tool
@@ -187,7 +187,7 @@
 				AdditionalIncludeDirectories=""
 				PreprocessorDefinitions="_WINDOWS"
 				StringPooling="true"
-				RuntimeLibrary="2"
+				RuntimeLibrary="0"
 				EnableFunctionLevelLinking="true"
 				CompileAs="0"
 			/>

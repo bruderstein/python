@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="Windows-1252"?>
 <VisualStudioProject
 	ProjectType="Visual C++"
-	Version="9,00"
+	Version="9.00"
 	Name="bz2"
 	ProjectGUID="{73FCD2BD-F133-46B7-8EC1-144CD82A59D5}"
 	RootNamespace="bz2"
@@ -43,6 +43,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				AdditionalIncludeDirectories="$(bz2Dir)"
+				RuntimeLibrary="1"
 				PreprocessorDefinitions="WIN32;_FILE_OFFSET_BITS=64"
 			/>
 			<Tool
@@ -53,10 +54,12 @@
 			/>
 			<Tool
 				Name="VCPreLinkEventTool"
+				Description="Build libbz2"
+				CommandLine="cd $(bz2Dir)&#x0D;&#x0A;if exist $(PlatformName)-Debug\libbz2.lib exit 0&#x0D;&#x0A;if not exist $(PlatformName)-Debug mkdir $(PlatformName)-Debug&#x0D;&#x0A;nmake /nologo /f makefile.msc lib&#x0D;&#x0A;copy libbz2.lib $(PlatformName)-Debug&#x0D;&#x0A;nmake /nologo /f makefile.msc clean&#x0D;&#x0A;"
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				BaseAddress="0x1D170000"
+				AdditionalDependencies="$(bz2Dir)\$(PlatformName)-Debug\libbz2.lib"
 			/>
 			<Tool
 				Name="VCALinkTool"
@@ -115,10 +118,12 @@
 			/>
 			<Tool
 				Name="VCPreLinkEventTool"
+				Description="Build libbz2"
+				CommandLine="cd $(bz2Dir)&#x0D;&#x0A;if exist $(PlatformName)-Debug\libbz2.lib exit 0&#x0D;&#x0A;if not exist $(PlatformName)-Debug mkdir $(PlatformName)-Debug&#x0D;&#x0A;nmake /nologo /f makefile.msc lib&#x0D;&#x0A;copy libbz2.lib $(PlatformName)-Debug&#x0D;&#x0A;nmake /nologo /f makefile.msc clean&#x0D;&#x0A;"
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				BaseAddress="0x1D170000"
+				AdditionalDependencies="$(bz2Dir)\$(PlatformName)-Debug\libbz2.lib"
 			/>
 			<Tool
 				Name="VCALinkTool"
@@ -167,6 +172,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				AdditionalIncludeDirectories="$(bz2Dir)"
+				RuntimeLibrary="0"
 				PreprocessorDefinitions="WIN32;_FILE_OFFSET_BITS=64"
 			/>
 			<Tool
@@ -177,10 +183,12 @@
 			/>
 			<Tool
 				Name="VCPreLinkEventTool"
+				Description="Build libbz2"
+				CommandLine="cd $(bz2Dir)&#x0D;&#x0A;if exist $(PlatformName)-Release\libbz2.lib exit 0&#x0D;&#x0A;if not exist $(PlatformName)-Release mkdir $(PlatformName)-Release&#x0D;&#x0A;nmake /nologo /f makefile.msc lib&#x0D;&#x0A;copy libbz2.lib $(PlatformName)-Release&#x0D;&#x0A;nmake /nologo /f makefile.msc clean&#x0D;&#x0A;"
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				BaseAddress="0x1D170000"
+				AdditionalDependencies="$(bz2Dir)\$(PlatformName)-Release\libbz2.lib"
 			/>
 			<Tool
 				Name="VCALinkTool"
@@ -240,10 +248,12 @@
 			/>
 			<Tool
 				Name="VCPreLinkEventTool"
+				Description="Build libbz2"
+				CommandLine="cd $(bz2Dir)&#x0D;&#x0A;if exist $(PlatformName)-Release\libbz2.lib exit 0&#x0D;&#x0A;if not exist $(PlatformName)-Release mkdir $(PlatformName)-Release&#x0D;&#x0A;nmake /nologo /f makefile.msc lib&#x0D;&#x0A;copy libbz2.lib $(PlatformName)-Release&#x0D;&#x0A;nmake /nologo /f makefile.msc clean&#x0D;&#x0A;"
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				BaseAddress="0x1D170000"
+				AdditionalDependencies="$(bz2Dir)\$(PlatformName)-Release\libbz2.lib"
 			/>
 			<Tool
 				Name="VCALinkTool"
@@ -302,10 +312,12 @@
 			/>
 			<Tool
 				Name="VCPreLinkEventTool"
+				Description="Build libbz2"
+				CommandLine="cd $(bz2Dir)&#x0D;&#x0A;if exist $(PlatformName)-Release\libbz2.lib exit 0&#x0D;&#x0A;if not exist $(PlatformName)-Release mkdir $(PlatformName)-Release&#x0D;&#x0A;nmake /nologo /f makefile.msc lib&#x0D;&#x0A;copy libbz2.lib $(PlatformName)-Release&#x0D;&#x0A;nmake /nologo /f makefile.msc clean&#x0D;&#x0A;"
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				BaseAddress="0x1D170000"
+				AdditionalDependencies="$(bz2Dir)\$(PlatformName)-Release\libbz2.lib"
 			/>
 			<Tool
 				Name="VCALinkTool"
@@ -365,10 +377,12 @@
 			/>
 			<Tool
 				Name="VCPreLinkEventTool"
+				Description="Build libbz2"
+				CommandLine="cd $(bz2Dir)&#x0D;&#x0A;if exist $(PlatformName)-Release\libbz2.lib exit 0&#x0D;&#x0A;if not exist $(PlatformName)-Release mkdir $(PlatformName)-Release&#x0D;&#x0A;nmake /nologo /f makefile.msc lib&#x0D;&#x0A;copy libbz2.lib $(PlatformName)-Release&#x0D;&#x0A;nmake /nologo /f makefile.msc clean&#x0D;&#x0A;"
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				BaseAddress="0x1D170000"
+				AdditionalDependencies="$(bz2Dir)\$(PlatformName)-Release\libbz2.lib"
 				TargetMachine="17"
 			/>
 			<Tool
@@ -428,10 +442,12 @@
 			/>
 			<Tool
 				Name="VCPreLinkEventTool"
+				Description="Build libbz2"
+				CommandLine="cd $(bz2Dir)&#x0D;&#x0A;if exist $(PlatformName)-Release\libbz2.lib exit 0&#x0D;&#x0A;if not exist $(PlatformName)-Release mkdir $(PlatformName)-Release&#x0D;&#x0A;nmake /nologo /f makefile.msc lib&#x0D;&#x0A;copy libbz2.lib $(PlatformName)-Release&#x0D;&#x0A;nmake /nologo /f makefile.msc clean&#x0D;&#x0A;"
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				BaseAddress="0x1D170000"
+				AdditionalDependencies="$(bz2Dir)\$(PlatformName)-Release\libbz2.lib"
 			/>
 			<Tool
 				Name="VCALinkTool"
@@ -491,9 +507,12 @@
 			/>
 			<Tool
 				Name="VCPreLinkEventTool"
+				Description="Build libbz2"
+				CommandLine="cd $(bz2Dir)&#x0D;&#x0A;if exist $(PlatformName)-Release\libbz2.lib exit 0&#x0D;&#x0A;if not exist $(PlatformName)-Release mkdir $(PlatformName)-Release&#x0D;&#x0A;nmake /nologo /f makefile.msc lib&#x0D;&#x0A;copy libbz2.lib $(PlatformName)-Release&#x0D;&#x0A;nmake /nologo /f makefile.msc clean&#x0D;&#x0A;"
 			/>
 			<Tool
 				Name="VCLinkerTool"
+				AdditionalDependencies="$(bz2Dir)\$(PlatformName)-Release\libbz2.lib"
 				BaseAddress="0x1D170000"
 				TargetMachine="17"
 			/>
@@ -528,50 +547,6 @@
 			>
 			<File
 				RelativePath="..\Modules\bz2module.c"
-				>
-			</File>
-		</Filter>
-		<Filter
-			Name="bzip2 1.0.5 Header Files"
-			>
-			<File
-				RelativePath="$(bz2Dir)\bzlib.h"
-				>
-			</File>
-			<File
-				RelativePath="$(bz2Dir)\bzlib_private.h"
-				>
-			</File>
-		</Filter>
-		<Filter
-			Name="bzip2 1.0.5 Source Files"
-			>
-			<File
-				RelativePath="$(bz2Dir)\blocksort.c"
-				>
-			</File>
-			<File
-				RelativePath="$(bz2Dir)\bzlib.c"
-				>
-			</File>
-			<File
-				RelativePath="$(bz2Dir)\compress.c"
-				>
-			</File>
-			<File
-				RelativePath="$(bz2Dir)\crctable.c"
-				>
-			</File>
-			<File
-				RelativePath="$(bz2Dir)\decompress.c"
-				>
-			</File>
-			<File
-				RelativePath="$(bz2Dir)\huffman.c"
-				>
-			</File>
-			<File
-				RelativePath="$(bz2Dir)\randtable.c"
 				>
 			</File>
 		</Filter>

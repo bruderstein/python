@@ -136,10 +136,16 @@ dircheck(PyFileObject* f)
     return f;
 }
 
-
+// BEGIN_PYSCR_CHANGE davegb3 26-Nov-2010 FixMTBuildIssue
+// Renames the function to fill_file_fields_with_dir and 
+// adds a parameter callDirCheck, which should be non-zero 
+// if the dircheck() function should be called (which checks
+// if the FILE pointer is a directory, using fstat.
+// This is unsafe to do when linked with /MT 
 static PyObject *
-fill_file_fields(PyFileObject *f, FILE *fp, PyObject *name, char *mode,
-                 int (*close)(FILE *))
+fill_file_fields_with_dir(PyFileObject *f, FILE *fp, PyObject *name, char *mode,
+                 int (*close)(FILE *), int callDirCheck)
+// END_PYSCR_CHANGE
 {
     assert(name != NULL);
     assert(f != NULL);
@@ -178,10 +184,24 @@ fill_file_fields(PyFileObject *f, FILE *fp, PyObject *name, char *mode,
     if (f->f_mode == NULL)
         return NULL;
     f->f_fp = fp;
-    f = dircheck(f);
+// BEGIN_PYSCR_CHANGE davegb3 26-Nov-2010 FixMTBuildIssue
+	if (callDirCheck)
+		f = dircheck(f);
+// END_PYSCR_CHANGE
     return (PyObject *) f;
 }
 
+// BEGIN_PYSCR_CHANGE davegb3 26-Nov-2010 FixMTBuildIssue
+// Normal version of the fill_file_fields just defaults the 
+// callDirCheck parameter above to 1, so the default case is 
+// the old behaviour
+static PyObject *
+fill_file_fields(PyFileObject *f, FILE *fp, PyObject *name, char *mode,
+                 int (*close)(FILE *))
+{
+	return fill_file_fields_with_dir(f, fp, name, mode, close, 1);
+}
+// END_PYSCR_CHANGE
 #if defined _MSC_VER && _MSC_VER >= 1400 && defined(__STDC_SECURE_LIB__)
 #define Py_VERIFY_WINNT
 /* The CRT on windows compiled with Visual Studio 2005 and higher may
@@ -482,6 +502,35 @@ PyFile_FromFile(FILE *fp, char *name, char *mode, int (*close)(FILE *))
     }
     return (PyObject *) f;
 }
+
+// BEGIN_PYSCR_CHANGE davegb3 26-Nov-2010 FixMTBuildIssue
+// This is a version of PyFile_FromFile that doesn't call
+// fstat(), so it's safe to call across DLL boundaries when
+// the runtime is statically linked with /MT 
+PyObject *
+PyFile_FromFileDllSafe(FILE *fp, PyObject *name, char *mode, int (*close)(FILE *))
+{
+
+
+    PyFileObject *f = (PyFileObject *)PyFile_Type.tp_new(&PyFile_Type,
+                                                         NULL, NULL);
+	if (f != NULL) {
+		if (name == NULL)
+		{
+			Py_DECREF(f);
+			return NULL;
+		}
+		// Call fill_file_fields, but don't call dircheck() which calls fstat
+		if (fill_file_fields_with_dir(f, fp, name, mode, close, 0 /* callDirCheck */) == NULL) {
+            Py_DECREF(f);
+            f = NULL;
+        }
+	}
+
+           
+    return (PyObject *) f;
+}
+// END_PYSCR_CHANGE
 
 PyObject *
 PyFile_FromString(char *name, char *mode)

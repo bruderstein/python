@@ -734,13 +734,22 @@ make_compiled_pathname(char *pathname, char *buf, size_t buflen)
    Doesn't set an exception. */
 
 static FILE *
-check_compiled_module(char *pathname, time_t mtime, char *cpathname)
+check_compiled_module(char *pathname, time_t mtime, char *cpathname, int path_is_utf8)
 {
     FILE *fp;
     long magic;
     long pyc_mtime;
+#ifdef Py_USING_UNICODE
+	wchar_t wcpathname[MAXPATHLEN + 1];
+	if (path_is_utf8)
+	{
+		MultiByteToWideChar(CP_UTF8, 0, cpathname, -1, wcpathname, MAXPATHLEN + 1);
+		fp = _wfopen(wcpathname, L"rb");
+	}
+	else
+#endif
+		fp = fopen(cpathname, "rb");
 
-    fp = fopen(cpathname, "rb");
     if (fp == NULL)
         return NULL;
     magic = PyMarshal_ReadLongFromFile(fp);
@@ -868,6 +877,38 @@ open_exclusive(char *filename, mode_t mode)
     return fopen(filename, "wb");
 #endif
 }
+#ifdef Py_USING_UNICODE
+static FILE *
+wopen_exclusive(wchar_t *filename, mode_t mode)
+{
+#if defined(O_EXCL)&&defined(O_CREAT)&&defined(O_WRONLY)&&defined(O_TRUNC)
+    /* Use O_EXCL to avoid a race condition when another process tries to
+       write the same file.  When that happens, our open() call fails,
+       which is just fine (since it's only a cache).
+       XXX If the file exists and is writable but the directory is not
+       writable, the file will never be written.  Oh well.
+    */
+    int fd;
+    (void) _wunlink(filename);
+    fd = _wopen(filename, O_EXCL|O_CREAT|O_WRONLY|O_TRUNC
+#ifdef O_BINARY
+                            |O_BINARY   /* necessary for Windows */
+#endif
+#ifdef __VMS
+            , mode, "ctxt=bin", "shr=nil"
+#else
+            , mode
+#endif
+          );
+    if (fd < 0)
+        return NULL;
+    return fdopen(fd, "wb");
+#else
+    /* Best we can do -- on Windows this can't happen anyway */
+    return fopen(filename, "wb");
+#endif
+}
+#endif /* Py_USING_UNICODE */
 
 
 /* Write a compiled module to a file, placing the time of last
@@ -876,17 +917,28 @@ open_exclusive(char *filename, mode_t mode)
    remove the file. */
 
 static void
-write_compiled_module(PyCodeObject *co, char *cpathname, struct stat *srcstat)
+write_compiled_module(PyCodeObject *co, char *cpathname, struct stat *srcstat, int path_is_utf8)
 {
     FILE *fp;
     time_t mtime = srcstat->st_mtime;
 #ifdef MS_WINDOWS   /* since Windows uses different permissions  */
     mode_t mode = srcstat->st_mode & ~S_IEXEC;
+#ifdef Py_USING_UNICODE
+	wchar_t wcpathname[MAXPATHLEN + 1];
+#endif
 #else
     mode_t mode = srcstat->st_mode & ~S_IXUSR & ~S_IXGRP & ~S_IXOTH;
 #endif
 
-    fp = open_exclusive(cpathname, mode);
+#ifdef Py_USING_UNICODE
+	if (path_is_utf8)
+	{
+		MultiByteToWideChar(CP_UTF8, 0, cpathname, -1, wcpathname, MAXPATHLEN + 1);
+		fp = wopen_exclusive(wcpathname, mode);
+	}
+	else
+#endif
+		fp = open_exclusive(cpathname, mode);
     if (fp == NULL) {
         if (Py_VerboseFlag)
             PySys_WriteStderr(
@@ -964,7 +1016,7 @@ update_compiled_module(PyCodeObject *co, char *pathname)
    byte-compiled file, use that instead. */
 
 static PyObject *
-load_source_module(char *name, char *pathname, FILE *fp)
+load_source_module(char *name, char *pathname, FILE *fp, int path_is_utf8)
 {
     struct stat st;
     FILE *fpc;
@@ -993,7 +1045,7 @@ load_source_module(char *name, char *pathname, FILE *fp)
     cpathname = make_compiled_pathname(pathname, buf,
                                        (size_t)MAXPATHLEN + 1);
     if (cpathname != NULL &&
-        (fpc = check_compiled_module(pathname, st.st_mtime, cpathname))) {
+        (fpc = check_compiled_module(pathname, st.st_mtime, cpathname, path_is_utf8))) {
         co = read_compiled_module(cpathname, fpc);
         fclose(fpc);
         if (co == NULL)
@@ -1015,7 +1067,7 @@ load_source_module(char *name, char *pathname, FILE *fp)
         if (cpathname) {
             PyObject *ro = PySys_GetObject("dont_write_bytecode");
             if (ro == NULL || !PyObject_IsTrue(ro))
-                write_compiled_module(co, cpathname, &st);
+                write_compiled_module(co, cpathname, &st, path_is_utf8);
         }
     }
     m = PyImport_ExecCodeModuleEx(name, (PyObject *)co, pathname);
@@ -1026,22 +1078,27 @@ load_source_module(char *name, char *pathname, FILE *fp)
 
 
 /* Forward */
-static PyObject *load_module(char *, FILE *, char *, int, PyObject *);
+static PyObject *load_module(char *, FILE *, char *, int, PyObject *, int path_is_utf8);
 static struct filedescr *find_module(char *, char *, PyObject *,
-                                     char *, size_t, FILE **, PyObject **);
+                                     char *, size_t, FILE **, PyObject **, int *);
 static struct _frozen *find_frozen(char *name);
 
 /* Load a package and return its module object WITH INCREMENTED
    REFERENCE COUNT */
 
 static PyObject *
-load_package(char *name, char *pathname)
+load_package(char *name, char *pathname, int path_is_utf8)
 {
     PyObject *m, *d;
     PyObject *file = NULL;
     PyObject *path = NULL;
     int err;
+	int buf_is_utf8;
     char buf[MAXPATHLEN+1];
+#ifdef Py_USING_UNICODE
+	Py_UNICODE wbuf[MAXPATHLEN+1];
+#endif
+
     FILE *fp = NULL;
     struct filedescr *fdp;
 
@@ -1052,7 +1109,14 @@ load_package(char *name, char *pathname)
         PySys_WriteStderr("import %s # directory %s\n",
             name, pathname);
     d = PyModule_GetDict(m);
-    file = PyString_FromString(pathname);
+#ifdef Py_USING_UNICODE
+	if (path_is_utf8) {
+		int wlen = MultiByteToWideChar(CP_UTF8, 0, pathname, -1, wbuf, MAXPATHLEN+1) - 1;
+		file = PyUnicode_FromWideChar(wbuf, wlen);
+	}
+	else
+#endif
+		file = PyString_FromString(pathname);
     if (file == NULL)
         goto error;
     path = Py_BuildValue("[O]", file);
@@ -1064,7 +1128,7 @@ load_package(char *name, char *pathname)
     if (err != 0)
         goto error;
     buf[0] = '\0';
-    fdp = find_module(name, "__init__", path, buf, sizeof(buf), &fp, NULL);
+    fdp = find_module(name, "__init__", path, buf, sizeof(buf), &fp, NULL, &buf_is_utf8);
     if (fdp == NULL) {
         if (PyErr_ExceptionMatches(PyExc_ImportError)) {
             PyErr_Clear();
@@ -1074,7 +1138,7 @@ load_package(char *name, char *pathname)
             m = NULL;
         goto cleanup;
     }
-    m = load_module(name, fp, buf, fdp->type, NULL);
+    m = load_module(name, fp, buf, fdp->type, NULL, buf_is_utf8);
     if (fp != NULL)
         fclose(fp);
     goto cleanup;
@@ -1195,16 +1259,37 @@ extern FILE *PyWin_FindRegisteredModule(const char *, struct filedescr **,
 
 static int case_ok(char *, Py_ssize_t, Py_ssize_t, char *);
 static int find_init_module(char *); /* Forward */
+
+#if defined(Py_USING_UNICODE) && defined(MS_WINDOWS)
+static int wcase_ok(wchar_t *, Py_ssize_t, Py_ssize_t, wchar_t *);
+static int wfind_init_module(wchar_t *); /* Forward */
+#endif
+
+
+
 static struct filedescr importhookdescr = {"", "", IMP_HOOK};
+
 
 static struct filedescr *
 find_module(char *fullname, char *subname, PyObject *path, char *buf,
-            size_t buflen, FILE **p_fp, PyObject **p_loader)
+            size_t buflen, FILE **p_fp, PyObject **p_loader, int *buf_is_utf8)
 {
     Py_ssize_t i, npath;
     size_t len, namelen;
     struct filedescr *fdp = NULL;
     char *filemode;
+#ifdef Py_USING_UNICODE
+	wchar_t wfilemode[10];
+	wchar_t wbuf[MAXPATHLEN];
+	wchar_t wname[MAXPATHLEN];
+	wchar_t wsubname[MAXPATHLEN]; 
+	size_t wlen, wnamelen, wbuflen = MAXPATHLEN;
+	struct _stat64i32 wstatbuf;
+	int path_is_unicode = 0;
+	
+	PyObject *escaped, *modeString, *osubname;
+#endif
+
     FILE *fp = NULL;
     PyObject *path_hooks, *path_importer_cache;
 #ifndef RISCOS
@@ -1219,14 +1304,31 @@ find_module(char *fullname, char *subname, PyObject *path, char *buf,
     size_t saved_namelen;
     char *saved_buf = NULL;
 #endif
+	*buf_is_utf8 = 0;
     if (p_loader != NULL)
         *p_loader = NULL;
-
-    if (strlen(subname) > MAXPATHLEN) {
+    
+	if (strlen(subname) > MAXPATHLEN) {
         PyErr_SetString(PyExc_OverflowError,
                         "module name is too long");
         return NULL;
     }
+#ifdef Py_USING_UNICODE
+	osubname = PyUnicode_FromString(subname);
+	if (osubname)
+	{
+		PyUnicode_AsWideChar((PyUnicodeObject*)osubname, wsubname, MAXPATHLEN);
+		wcscpy(wname, wsubname);
+		Py_DECREF(osubname);
+	}
+	else
+	{
+		wname[0] = 0;
+		wsubname[0] = 0;
+	}
+
+#endif
+
     strcpy(name, subname);
 
     /* sys.meta_path import hook */
@@ -1264,6 +1366,7 @@ find_module(char *fullname, char *subname, PyObject *path, char *buf,
         Py_DECREF(meta_path);
     }
 
+	// TODO: Do unicode stuff for meta_path
     if (path != NULL && PyString_Check(path)) {
         /* The only type of submodule allowed inside a "frozen"
            package are other frozen modules or packages. */
@@ -1326,6 +1429,10 @@ find_module(char *fullname, char *subname, PyObject *path, char *buf,
 
     npath = PyList_Size(path);
     namelen = strlen(name);
+#ifdef Py_USING_UNICODE
+	wnamelen = wcslen(wname);
+#endif
+
     for (i = 0; i < npath; i++) {
         PyObject *copy = NULL;
         PyObject *v = PyList_GetItem(path, i);
@@ -1333,33 +1440,51 @@ find_module(char *fullname, char *subname, PyObject *path, char *buf,
             return NULL;
 #ifdef Py_USING_UNICODE
         if (PyUnicode_Check(v)) {
+			
+			
             copy = PyUnicode_Encode(PyUnicode_AS_UNICODE(v),
                 PyUnicode_GET_SIZE(v), Py_FileSystemDefaultEncoding, NULL);
             if (copy == NULL)
                 return NULL;
+			/* Don't change it - leave it unicode 
             v = copy;
+			*/
+
+			wlen = PyUnicode_GET_SIZE(v);
+			if (wlen + 2 + wnamelen + MAXSUFFIXSIZE >= wbuflen) {
+				Py_XDECREF(copy);
+				continue; /* Too long */
+			}
+
+			PyUnicode_AsWideChar((PyUnicodeObject*)v, wbuf, wbuflen);
+			path_is_unicode = 1;
+
         }
         else
 #endif
-        if (!PyString_Check(v))
-            continue;
-        len = PyString_GET_SIZE(v);
-        if (len + 2 + namelen + MAXSUFFIXSIZE >= buflen) {
-            Py_XDECREF(copy);
-            continue; /* Too long */
-        }
-        strcpy(buf, PyString_AS_STRING(v));
-        if (strlen(buf) != len) {
-            Py_XDECREF(copy);
-            continue; /* v contains '\0' */
-        }
-
+		{
+			if (!PyString_Check(v))
+				continue;
+			else
+			{
+				len = PyString_GET_SIZE(v);
+				if (len + 2 + namelen + MAXSUFFIXSIZE >= buflen) {
+					Py_XDECREF(copy);
+					continue; /* Too long */
+				}
+				strcpy(buf, PyString_AS_STRING(v));
+				if (strlen(buf) != len) {
+					Py_XDECREF(copy);
+					continue; /* v contains '\0' */
+				}
+			}
+		}
         /* sys.path_hooks import hook */
         if (p_loader != NULL) {
             PyObject *importer;
-
+			
             importer = get_path_importer(path_importer_cache,
-                                         path_hooks, v);
+					path_hooks, v);
             if (importer == NULL) {
                 Py_XDECREF(copy);
                 return NULL;
@@ -1383,38 +1508,95 @@ find_module(char *fullname, char *subname, PyObject *path, char *buf,
             }
         }
         /* no hook was found, use builtin import */
-
-        if (len > 0 && buf[len-1] != SEP
-#ifdef ALTSEP
-            && buf[len-1] != ALTSEP
+#ifdef Py_USING_UNICODE
+		if (PyUnicode_Check(v))
+		{
+			if (wlen > 0 && wbuf[wlen-1] != WSEP
+#ifdef WALTSEP
+				&& wbuf[wlen-1] != WALTSEP
+#endif				
+				)
+				wbuf[wlen++] = WSEP;
+			
+			wcscpy(wbuf+wlen, wname);
+			wlen += wnamelen;
+		}
+		else
 #endif
-            )
-            buf[len++] = SEP;
-        strcpy(buf+len, name);
-        len += namelen;
-
+		{
+			if (len > 0 && buf[len-1] != SEP
+#ifdef ALTSEP
+				&& buf[len-1] != ALTSEP
+#endif
+				)
+				buf[len++] = SEP;
+			strcpy(buf+len, name);
+			len += namelen;
+		}
         /* Check for package import (buf holds a directory name,
            and there's an __init__ module in that directory */
 #ifdef HAVE_STAT
+
+#ifdef Py_USING_UNICODE
+		if (path_is_unicode) {
+			if (_wstat(wbuf, &wstatbuf) == 0 &&
+				S_ISDIR(wstatbuf.st_mode) &&         /* it's a directory */
+				wcase_ok(wbuf, wlen, wnamelen, wname)) { /* case matches
+														*/
+				if (wfind_init_module(wbuf)) { /* and has __init__.py */
+					Py_XDECREF(copy);
+					WideCharToMultiByte(CP_UTF8, 0, wbuf, -1, buf, buflen, NULL, NULL);
+					*buf_is_utf8 = 1;
+					return &fd_package;
+				}
+				else {
+					char warnstr[MAXPATHLEN+80];
+					PyObject *uniname, *uninameescaped, *ascii;
+					uniname = PyUnicode_FromWideChar(wbuf, wbuflen);
+					uninameescaped = PyUnicode_AsRawUnicodeEscapeString(uniname);
+					ascii = PyUnicode_AsASCIIString(uninameescaped);
+
+					sprintf(warnstr, "Not importing directory "
+						"'%.*s': missing __init__.py",
+						MAXPATHLEN, PyString_AS_STRING(ascii));
+
+					Py_DECREF(uniname);
+					Py_DECREF(uninameescaped);
+					Py_DECREF(ascii);
+
+					if (PyErr_Warn(PyExc_ImportWarning,
+								   warnstr)) {
+						Py_XDECREF(copy);
+						return NULL;
+					}
+				}
+			}
+		}
+		else
+#endif
+
         if (stat(buf, &statbuf) == 0 &&         /* it exists */
-            S_ISDIR(statbuf.st_mode) &&         /* it's a directory */
-            case_ok(buf, len, namelen, name)) { /* case matches */
-            if (find_init_module(buf)) { /* and has __init__.py */
-                Py_XDECREF(copy);
-                return &fd_package;
-            }
-            else {
-                char warnstr[MAXPATHLEN+80];
-                sprintf(warnstr, "Not importing directory "
-                    "'%.*s': missing __init__.py",
-                    MAXPATHLEN, buf);
-                if (PyErr_Warn(PyExc_ImportWarning,
-                               warnstr)) {
-                    Py_XDECREF(copy);
-                    return NULL;
-                }
-            }
-        }
+			 S_ISDIR(statbuf.st_mode) &&         /* it's a directory */
+			 case_ok(buf, len, namelen, name)) { /* case matches */
+
+			 if (find_init_module(buf)) { /* and has __init__.py */
+				Py_XDECREF(copy);
+				return &fd_package;
+			 }
+			 else {
+				char warnstr[MAXPATHLEN+80];
+				sprintf(warnstr, "Not importing directory "
+					"'%.*s': missing __init__.py",
+					MAXPATHLEN, buf);
+				if (PyErr_Warn(PyExc_ImportWarning,
+							   warnstr)) {
+					Py_XDECREF(copy);
+					return NULL;
+				}
+			}
+		}
+              
+
 #else
         /* XXX How are you going to test for directories? */
 #ifdef RISCOS
@@ -1471,7 +1653,60 @@ find_module(char *fullname, char *subname, PyObject *path, char *buf,
                 }
             }
 #endif /* PYOS_OS2 */
-            strcpy(buf+len, fdp->suffix);
+#ifdef Py_USING_UNICODE
+		if (path_is_unicode)
+		{
+			wchar_t wsuffix[20];
+			// TODO: need to check return val here
+			MultiByteToWideChar(CP_UTF8, 0, fdp->suffix, -1, wsuffix, 20);
+			wcscpy(wbuf+wlen, wsuffix);		
+            if (Py_VerboseFlag > 1)
+			{	
+				
+				PyObject* upathobj = PyUnicode_FromWideChar(wbuf, wlen);
+				if (upathobj == NULL)
+					return NULL;
+				escaped = PyUnicode_AsUnicodeEscapeString(upathobj);
+				
+				if (escaped == NULL)
+				{
+					Py_DECREF(upathobj);
+					return NULL;
+				}
+
+                PySys_WriteStderr("# trying %s\n", PyString_AS_STRING(escaped));
+				Py_DECREF(upathobj);
+				Py_DECREF(escaped);
+			}
+            filemode = fdp->mode;
+            if (filemode[0] == 'U')
+                filemode = "r" PY_STDIOTEXTMODE;
+			
+			modeString = PyUnicode_FromString(filemode);
+			if (modeString == NULL)
+				return NULL;
+			PyUnicode_AsWideChar((PyUnicodeObject*)modeString, wfilemode, 10);
+			fp = _wfopen(wbuf, wfilemode);
+			Py_DECREF(modeString);
+
+            if (fp != NULL) {
+                if (wcase_ok(wbuf, wlen, wnamelen, wname))
+				{
+					WideCharToMultiByte(CP_UTF8, 0, wbuf, -1, buf, buflen, NULL, NULL);
+					*buf_is_utf8 = 1;
+					break;
+				}
+                else {                   /* continue search */
+                    fclose(fp);
+                    fp = NULL;
+                }
+            }
+		}
+		else
+	
+#endif
+		{
+            strcpy(buf+len, fdp->suffix);		
             if (Py_VerboseFlag > 1)
                 PySys_WriteStderr("# trying %s\n", buf);
             filemode = fdp->mode;
@@ -1486,6 +1721,8 @@ find_module(char *fullname, char *subname, PyObject *path, char *buf,
                     fp = NULL;
                 }
             }
+		}
+
 #if defined(PYOS_OS2)
             /* restore the saved snapshot */
             strcpy(buf, saved_buf);
@@ -1514,6 +1751,7 @@ find_module(char *fullname, char *subname, PyObject *path, char *buf,
     return fdp;
 }
 
+
 /* Helpers for main.c
  *  Find the source file corresponding to a named module
  */
@@ -1521,8 +1759,9 @@ struct filedescr *
 _PyImport_FindModule(const char *name, PyObject *path, char *buf,
             size_t buflen, FILE **p_fp, PyObject **p_loader)
 {
+	int buf_is_utf8;
     return find_module((char *) name, (char *) name, path,
-                       buf, buflen, p_fp, p_loader);
+                       buf, buflen, p_fp, p_loader, &buf_is_utf8);
 }
 
 PyAPI_FUNC(int) _PyImport_IsScript(struct filedescr * fd)
@@ -1713,6 +1952,37 @@ case_ok(char *buf, Py_ssize_t len, Py_ssize_t namelen, char *name)
 }
 
 
+#if defined(Py_USING_UNICODE) && defined(MS_WINDOWS)
+
+static int
+wcase_ok(wchar_t *wbuf, Py_ssize_t len, Py_ssize_t namelen, wchar_t *wname)
+{
+
+    WIN32_FIND_DATAW data;
+    HANDLE h;
+
+    if (Py_GETENV("PYTHONCASEOK") != NULL)
+        return 1;
+
+    h = FindFirstFileW(wbuf, &data);
+    if (h == INVALID_HANDLE_VALUE) {
+		char name[MAXPATHLEN + 1];
+		char buf[MAXPATHLEN + 1];
+		WideCharToMultiByte(CP_UTF8, 0, wname, -1, name, MAXPATHLEN+1, NULL, NULL);
+		WideCharToMultiByte(CP_UTF8, 0, wbuf, -1, buf, MAXPATHLEN+1, NULL, NULL);
+
+        PyErr_Format(PyExc_NameError,
+          "Can't find file for module %.100s\n(filename %.300s)",
+          name, buf);
+        return 0;
+    }
+    FindClose(h);
+    return wcsncmp(data.cFileName, wname, namelen) == 0;
+}
+
+#endif
+
+
 #ifdef HAVE_STAT
 /* Helper to look for __init__.py or __init__.py[co] in potential package */
 static int
@@ -1760,6 +2030,51 @@ find_init_module(char *buf)
     return 0;
 }
 
+static int
+wfind_init_module(wchar_t *wbuf)
+{
+    const size_t save_len = wcslen(wbuf);
+    size_t i = save_len;
+    wchar_t *pwname;  /* pointer to start of __init__ */
+    struct _stat64i32 statbuf;
+
+/*      For calling case_ok(buf, len, namelen, name):
+ *      /a/b/c/d/e/f/g/h/i/j/k/some_long_module_name.py\0
+ *      ^                      ^                   ^    ^
+ *      |--------------------- buf ---------------------|
+ *      |------------------- len ------------------|
+ *                             |------ name -------|
+ *                             |----- namelen -----|
+ */
+    if (save_len + 13 >= MAXPATHLEN)
+        return 0;
+    wbuf[i++] = WSEP;
+    pwname = wbuf + i;
+    wcscpy(pwname, L"__init__.py");
+    if (_wstat(wbuf, &statbuf) == 0) {
+        if (wcase_ok(wbuf,
+                    save_len + 9,               /* len("/__init__") */
+                8,                              /* len("__init__") */
+                pwname)) {
+            wbuf[save_len] = '\0';
+            return 1;
+        }
+    }
+    i += wcslen(pwname);
+    wcscpy(wbuf+i, Py_OptimizeFlag ? L"o" : L"c");
+    if (_wstat(wbuf, &statbuf) == 0) {
+        if (wcase_ok(wbuf,
+                    save_len + 9,               /* len("/__init__") */
+                8,                              /* len("__init__") */
+                pwname)) {
+            wbuf[save_len] = '\0';
+            return 1;
+        }
+    }
+    wbuf[save_len] = '\0';
+    return 0;
+}
+
 #else
 
 #ifdef RISCOS
@@ -1801,7 +2116,7 @@ static int init_builtin(char *); /* Forward */
    its module object WITH INCREMENTED REFERENCE COUNT */
 
 static PyObject *
-load_module(char *name, FILE *fp, char *pathname, int type, PyObject *loader)
+load_module(char *name, FILE *fp, char *pathname, int type, PyObject *loader, int buf_is_utf8)
 {
     PyObject *modules;
     PyObject *m;
@@ -1822,7 +2137,7 @@ load_module(char *name, FILE *fp, char *pathname, int type, PyObject *loader)
     switch (type) {
 
     case PY_SOURCE:
-        m = load_source_module(name, pathname, fp);
+        m = load_source_module(name, pathname, fp, buf_is_utf8);
         break;
 
     case PY_COMPILED:
@@ -1836,7 +2151,7 @@ load_module(char *name, FILE *fp, char *pathname, int type, PyObject *loader)
 #endif
 
     case PKG_DIRECTORY:
-        m = load_package(name, pathname);
+        m = load_package(name, pathname, buf_is_utf8);
         break;
 
     case C_BUILTIN:
@@ -2556,7 +2871,7 @@ import_submodule(PyObject *mod, char *subname, char *fullname)
 {
     PyObject *modules = PyImport_GetModuleDict();
     PyObject *m = NULL;
-
+	int buf_is_utf8;
     /* Require:
        if mod == None: subname == fullname
        else: mod.__name__ + "." + subname == fullname
@@ -2584,7 +2899,7 @@ import_submodule(PyObject *mod, char *subname, char *fullname)
 
         buf[0] = '\0';
         fdp = find_module(fullname, subname, path, buf, MAXPATHLEN+1,
-                          &fp, &loader);
+                          &fp, &loader, &buf_is_utf8);
         Py_XDECREF(path);
         if (fdp == NULL) {
             if (!PyErr_ExceptionMatches(PyExc_ImportError))
@@ -2593,7 +2908,7 @@ import_submodule(PyObject *mod, char *subname, char *fullname)
             Py_INCREF(Py_None);
             return Py_None;
         }
-        m = load_module(fullname, fp, buf, fdp->type, loader);
+        m = load_module(fullname, fp, buf, fdp->type, loader, buf_is_utf8);
         Py_XDECREF(loader);
         if (fp)
             fclose(fp);
@@ -2622,7 +2937,7 @@ PyImport_ReloadModule(PyObject *m)
     struct filedescr *fdp;
     FILE *fp = NULL;
     PyObject *newm;
-
+	int buf_is_utf8;
     if (modules_reloading == NULL) {
         Py_FatalError("PyImport_ReloadModule: "
                       "no modules_reloading dictionary!");
@@ -2679,7 +2994,7 @@ PyImport_ReloadModule(PyObject *m)
             PyErr_Clear();
     }
     buf[0] = '\0';
-    fdp = find_module(name, subname, path, buf, MAXPATHLEN+1, &fp, &loader);
+    fdp = find_module(name, subname, path, buf, MAXPATHLEN+1, &fp, &loader, &buf_is_utf8);
     Py_XDECREF(path);
 
     if (fdp == NULL) {
@@ -2688,7 +3003,7 @@ PyImport_ReloadModule(PyObject *m)
         return NULL;
     }
 
-    newm = load_module(name, fp, buf, fdp->type, loader);
+    newm = load_module(name, fp, buf, fdp->type, loader, buf_is_utf8);
     Py_XDECREF(loader);
 
     if (fp)
@@ -2834,11 +3149,12 @@ call_find_module(char *name, PyObject *path)
     struct filedescr *fdp;
     char pathname[MAXPATHLEN+1];
     FILE *fp = NULL;
+	int buf_is_utf8;
 
     pathname[0] = '\0';
     if (path == Py_None)
         path = NULL;
-    fdp = find_module(NULL, name, path, pathname, MAXPATHLEN+1, &fp, NULL);
+    fdp = find_module(NULL, name, path, pathname, MAXPATHLEN+1, &fp, NULL, &buf_is_utf8);
     if (fdp == NULL)
         return NULL;
     if (fp != NULL) {
@@ -3016,7 +3332,7 @@ imp_load_source(PyObject *self, PyObject *args)
     fp = get_file(pathname, fob, "r");
     if (fp == NULL)
         return NULL;
-    m = load_source_module(name, pathname, fp);
+    m = load_source_module(name, pathname, fp, 0);
     if (fob == NULL)
         fclose(fp);
     return m;
@@ -3060,7 +3376,7 @@ imp_load_module(PyObject *self, PyObject *args)
         if (fp == NULL)
             return NULL;
     }
-    return load_module(name, fp, pathname, type, NULL);
+    return load_module(name, fp, pathname, type, NULL, 0);
 }
 
 static PyObject *
@@ -3070,7 +3386,7 @@ imp_load_package(PyObject *self, PyObject *args)
     char *pathname;
     if (!PyArg_ParseTuple(args, "ss:load_package", &name, &pathname))
         return NULL;
-    return load_package(name, pathname);
+    return load_package(name, pathname, 0);
 }
 
 static PyObject *
@@ -3195,8 +3511,29 @@ NullImporter_init(NullImporter *self, PyObject *args, PyObject *kwds)
 
     if (!PyArg_ParseTuple(args, "s:NullImporter",
                           &path))
+	{
+#if defined(Py_USING_UNICODE) && defined(MS_WINDOWS)
+		Py_UNICODE *upath;
+		if (PyArg_ParseTuple(args, "u:NullImporter", &upath))
+		{
+			int rv;
+			// Unicode path passed in, so complete the function with unicode argument
+			rv = GetFileAttributesW(upath);
+			if (rv != INVALID_FILE_ATTRIBUTES) {
+				/* it exists */
+				if (rv & FILE_ATTRIBUTE_DIRECTORY) {
+					/* it's a directory */
+					PyErr_SetString(PyExc_ImportError,
+									"existing directory");
+					return -1;
+				}
+			}
+			// No error on the unicode version
+			return 0;
+		}
+#endif
         return -1;
-
+	}
     pathlen = strlen(path);
     if (pathlen == 0) {
         PyErr_SetString(PyExc_ImportError, "empty pathname");

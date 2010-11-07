@@ -1109,11 +1109,21 @@ BZ2File_seek(BZ2FileObject *self, PyObject *args)
             Util_CatchBZ2Error(bzerror);
             goto cleanup;
         }
+        // BEGIN_PYSCR_CHANGE davegb3 27-Nov-2010 FixMTBuild
+		// Cannot call the seek method on the PyFileObject, as that would call
+		// fseek in the wrong DLL, need to rewind the FILE from this DLL
+		// We know it's a FILE*, because we opened it :) 
+		fseek(PyFile_AsFile(self->file), 0, SEEK_SET);
+
+		/* Original 
         ret = PyObject_CallMethod(self->file, "seek", "(i)", 0);
         if (!ret)
             goto cleanup;
         Py_DECREF(ret);
         ret = NULL;
+		   End Original */
+		// END_PYSCR_CHANGE
+
         self->pos = 0;
         self->fp = BZ2_bzReadOpen(&bzerror, PyFile_AsFile(self->file),
                                   0, 0, NULL, 0);
@@ -1372,6 +1382,9 @@ BZ2File_init(BZ2FileObject *self, PyObject *args, PyObject *kwargs)
     int compresslevel = 9;
     int bzerror;
     int mode_char = 0;
+    // BEGIN_PYSCR_CHANGE davegb3 26-Nov-2010 FixMTBuildIssue
+    FILE *f_fp = NULL;
+    // END_PYSCR_CHANGE
 
     self->size = -1;
 
@@ -1427,8 +1440,46 @@ BZ2File_init(BZ2FileObject *self, PyObject *args, PyObject *kwargs)
 
     mode = (mode_char == 'r') ? "rb" : "wb";
 
+	// BEGIN_PYSCR_CHANGE davegb3 26-Nov-2010 FixMTBuildIssue 
+	// When fopen (or _wfopen) is called from the the python library, it's using a 
+	// different physical copy of the MS runtime, so the FILE* is invalid here.
+	// See http://msdn.microsoft.com/en-us/library/ms235460.aspx for more info
+	// The fix is to open the file (with fopen or _wfopen in _this_ DLL (.PYD)
+
+#ifdef MS_WINDOWS
+	
+    if (PyUnicode_Check(name)) {
+        PyObject *wmode;
+        wmode = PyUnicode_DecodeASCII(mode, strlen(mode), NULL);
+        if (name && wmode) {
+            f_fp = _wfopen(PyUnicode_AS_UNICODE(name),
+                              PyUnicode_AS_UNICODE(wmode));
+        }
+		Py_XDECREF(wmode);
+    }
+#endif
+    if (NULL == f_fp && NULL != name) {
+        f_fp = fopen(PyString_AS_STRING(name), mode);
+    }
+	
+	if (f_fp == NULL)
+	{
+		 PyErr_Format(PyExc_IOError,
+                         "BZ2 module cannot open file");
+		return -1;
+	}
+
+	self->file = PyFile_FromFileDllSafe(f_fp, name, mode, fclose);
+	//Py_INCREF(self->file);
+	//PyFile_IncUseCount((PyFileObject*)self->file);
+	
+
+    /* Original
     self->file = PyObject_CallFunction((PyObject*)&PyFile_Type, "(Osi)",
                                        name, mode, buffering);
+    End Original */
+    // END_PYSCR_CHANGE
+
     if (self->file == NULL)
         return -1;
 

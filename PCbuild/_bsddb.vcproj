@@ -44,6 +44,7 @@
 				Name="VCCLCompilerTool"
 				AdditionalIncludeDirectories="$(bsddbDir),$(bsddbDir)\.."
 				PreprocessorDefinitions="_CRT_SECURE_NO_WARNINGS"
+				RuntimeLibrary="1"
 			/>
 			<Tool
 				Name="VCManagedResourceCompilerTool"
@@ -171,6 +172,7 @@
 				Name="VCCLCompilerTool"
 				AdditionalIncludeDirectories="$(bsddbDir),$(bsddbDir)\.."
 				PreprocessorDefinitions="_CRT_SECURE_NO_WARNINGS"
+				RuntimeLibrary="0"
 			/>
 			<Tool
 				Name="VCManagedResourceCompilerTool"

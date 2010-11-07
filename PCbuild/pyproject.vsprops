@@ -46,7 +46,7 @@
 	/>
 	<UserMacro
 		Name="externalsDir"
-		Value="..\.."
+		Value="..\..\..\PyLibs"
 	/>
 	<UserMacro
 		Name="bsddb47Dir"
@@ -74,11 +74,11 @@
 	/>
 	<UserMacro
 		Name="sqlite3Dir"
-		Value="$(externalsDir)\sqlite-3.6.21"
+		Value="$(externalsDir)\sqlite-3.7.3"
 	/>
 	<UserMacro
 		Name="bz2Dir"
-		Value="$(externalsDir)\bzip2-1.0.5"
+		Value="$(externalsDir)\bzip2-1.0.6"
 	/>
 	<UserMacro
 		Name="opensslDir"
@@ -86,7 +86,7 @@
 	/>
 	<UserMacro
 		Name="tcltkDir"
-		Value="$(externalsDir)\tcltk"
+		Value="$(externalsDir)\tcltk8.5"
 	/>
 	<UserMacro
 		Name="tcltk64Dir"
@@ -94,11 +94,11 @@
 	/>
 	<UserMacro
 		Name="tcltkLib"
-		Value="$(tcltkDir)\lib\tcl85.lib $(tcltkDir)\lib\tk85.lib"
+		Value="$(tcltkDir)\lib\tcl85s.lib $(tcltkDir)\lib\tk85s.lib"
 	/>
 	<UserMacro
 		Name="tcltkLibDebug"
-		Value="$(tcltkDir)\lib\tcl85g.lib $(tcltkDir)\lib\tk85g.lib"
+		Value="$(tcltkDir)\lib\tcl85sg.lib $(tcltkDir)\lib\tk85sg.lib"
 	/>
 	<UserMacro
 		Name="tcltk64Lib"
@@ -107,5 +107,13 @@
 	<UserMacro
 		Name="tcltk64LibDebug"
 		Value="$(tcltk64Dir)\lib\tcl85g.lib $(tcltk64Dir)\lib\tk85g.lib"
+	/>
+	<UserMacro
+		Name="tclDir"
+		Value="$(externalsDir)\tcl8.5"
+	/>
+	<UserMacro
+		Name="tkDir"
+		Value="$(externalsDir)\tk8.5"
 	/>
 </VisualStudioPropertySheet>

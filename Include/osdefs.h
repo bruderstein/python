@@ -17,6 +17,11 @@ extern "C" {
 #else
 #define SEP '\\'
 #define ALTSEP '/'
+#ifdef Py_USING_UNICODE
+#define WSEP L'\\'
+#define WALTSETP L'/'
+#endif
+
 #define MAXPATHLEN 256
 #endif
 #define DELIM ';'
