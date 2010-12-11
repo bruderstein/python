@@ -1144,7 +1144,7 @@ _check_and_flush (FILE *stream)
 
 /* Subversion branch and revision management */
 static const char _patchlevel_revision[] = PY_PATCHLEVEL_REVISION;
-static const char headurl[] = "$HeadURL$";
+static const char headurl[] = "/python/branches/release27-maint-npp/Python/sysmodule.c";
 static int svn_initialized;
 static char patchlevel_revision[50]; /* Just the number */
 static char branch[50];

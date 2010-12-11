@@ -31,7 +31,7 @@
 /*--end constants--*/
 
 /* Subversion Revision number of this file (not of the repository) */
-#define PY_PATCHLEVEL_REVISION  "$Revision$"
+#define PY_PATCHLEVEL_REVISION  "86832"
 
 /* Version as a single 4-byte hex number, e.g. 0x010502B2 == 1.5.2b2.
    Use this for numeric comparisons, e.g. #if PY_VERSION_HEX >= ... */
