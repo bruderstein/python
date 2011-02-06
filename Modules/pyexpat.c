@@ -964,11 +964,12 @@ xmlparse_ParseFile(xmlparseobject *self, PyObject *f)
     int rv = 1;
     FILE *fp;
     PyObject *readmethod = NULL;
-
-    if (PyFile_Check(f)) {
-        fp = PyFile_AsFile(f);
-    }
-    else {
+	// BEGIN_PYSCR_CHANGE davegb3 06-Feb-2011 FixMTBuild
+    // if (PyFile_Check(f)) {
+    //     fp = PyFile_AsFile(f);
+    // }
+    // else {
+    // END_PYSCR_CHANGE
         fp = NULL;
         readmethod = PyObject_GetAttrString(f, "read");
         if (readmethod == NULL) {
@@ -977,7 +978,9 @@ xmlparse_ParseFile(xmlparseobject *self, PyObject *f)
                             "argument must have 'read' attribute");
             return NULL;
         }
-    }
+	// BEGIN_PYSCR_CHANGE davegb3 06-Feb-2011 FixMTBuild
+    // }
+	// END_PYSCR_CHANGE 
     for (;;) {
         int bytes_read;
         void *buf = XML_GetBuffer(self->itself, BUF_SIZE);
